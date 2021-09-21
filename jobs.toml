@@ -1,0 +1,10 @@
+[[job]]
+cpus = 1
+#gpus = 0
+#resources = {res1=1}
+cmd="sample.py -t \"test test\" 'aa ' -c"
+
+
+[[job]]
+cpus = 0.1
+cmd="sample.py -t1 -d"
