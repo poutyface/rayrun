@@ -1,10 +1,16 @@
+[runtime_env]
+working_dir="."
+
 [[job]]
-cpus = 1
 #gpus = 0
 #resources = {res1=1}
 cmd="sample.py -t \"test test\" 'aa ' -c"
+[job.runtime_env]
 
 
 [[job]]
 cpus = 0.1
 cmd="sample.py -t1 -d"
+[job.runtime_env]
+#pip=["urllib3==1.26.0"]
+env_vars={DEBUG="1", TRACE="True"}

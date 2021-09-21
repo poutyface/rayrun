@@ -17,7 +17,6 @@ class RayConfig:
     num_gpus: float | None
     resources: dict[str, float] | None
     
-
 @ray.remote
 def runpy_run(app: str, args: list[str]):
     sys.argv = [app] + [*args]
@@ -30,6 +29,10 @@ def toml_run(toml_file):
 
     cfg = tomlkit.loads(Path(toml_file).read_text())
     print(cfg)
+
+    if "runtime_env" in cfg:
+        ray.init(runtime_env=cfg["runtime_env"])
+    
     jobs = []
     for job in cfg["job"]:
         print(shlex.split(job["cmd"]))
@@ -39,7 +42,8 @@ def toml_run(toml_file):
         ref = runpy_run.options(
             num_cpus=job["cpus"] if "cpus" in job else None,
             num_gpus=job["gpus"] if "gpus" in job else None,
-            resources=job["resources"] if "resources" in job else None
+            resources=job["resources"] if "resources" in job else None,
+            runtime_env=job["runtime_env"] if "runtime_env" in job else None
         ).remote(app, args)
 
         jobs.append(ref)
