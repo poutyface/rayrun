@@ -5,7 +5,6 @@ working_dir="."
 #gpus = 0
 #resources = {res1=1}
 cmd="sample.py -t \"test test\" 'aa ' -c"
-[job.runtime_env]
 
 
 [[job]]
