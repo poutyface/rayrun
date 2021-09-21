@@ -30,8 +30,9 @@ def toml_run(toml_file):
     cfg = tomlkit.loads(Path(toml_file).read_text())
     print(cfg)
 
-    if "runtime_env" in cfg:
-        ray.init(runtime_env=cfg["runtime_env"])
+    address = cfg["ray"]["init"]["address"] if "address" in cfg["ray"]["init"] else None
+    runtime_env = cfg["ray"]["init"]["runtime_env"] if "runtime_env" in cfg["ray"]["init"] else None
+    ray.init(address=address, runtime_env=runtime_env)
     
     jobs = []
     for job in cfg["job"]:

@@ -1,5 +1,8 @@
-[runtime_env]
-working_dir="."
+[ray.init]
+# if you want to connect a exsisting ray cluster, set "auto"
+address=""
+runtime_env={working_dir="."}
+
 
 [[job]]
 #gpus = 0
