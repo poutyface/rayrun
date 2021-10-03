@@ -1,15 +1,24 @@
-[ray.init]
-
+placement_group = [ {CPU=1}, {CPU=2} ]
 
 [[job]]
+cmd = "examples/sample.py -t \"test test\" 'aa ' -c"
+[job.options]
 num_cpus = 1
 #num_gpus = 0
 #resources = {res1=1}
-cmd="examples/sample.py -t \"test test\" 'aa ' -c"
 
 
 [[job]]
+cmd = "examples/sample.py -t1 -d"
+[job.options]
 num_cpus = 0.1
-cmd="examples/sample.py -t1 -d"
-[job.runtime_env]
-env_vars={DEBUG="1", TRACE="True"}
+#[job.runtime_env]
+#env_vars={DEBUG="1", TRACE="True"}
+
+
+[[job]]
+cmd = "examples/sample.py"
+[job.options]
+placement_group_bundle_index = -1
+#[job.runtime_env]
+#env_vars={DEBUG="1", TRACE="True"}

@@ -5,6 +5,7 @@ import sys
 from argparse import REMAINDER, ArgumentParser
 import dataclasses
 import ray
+from ray.util.placement_group import placement_group
 import ast
 import shlex
 import runpy
@@ -24,8 +25,8 @@ def runpy_run(app: str, args: list[str]):
     runpy.run_path(sys.argv[0], run_name="__main__")
 
 
-def run_script(params: dict, app: str, args: list[str]):
-    task = runpy_run.options(**params).remote(app, args)
+def run_script(options: dict, app: str, args: list[str]):
+    task = runpy_run.options(**options).remote(app, args)
     ray.get(task)
     print("Finish task")
 
@@ -36,23 +37,22 @@ def ray_init(config):
     ray.init(address=address, runtime_env=runtime_env)
 """
 
-def check_params(params):
+def check_options(options):
     keys = [
         "num_returns", 
         "memory", 
         "object_store_memory", 
         "accelerator_type",
         "max_retries",
-        "placement_group",
-        "placement_group_bundle_index",
         "placement_group_capture_child_tasks",
         "runtime_env",
         "override_environment_variables",
         "name"
     ]
     for key in keys:
-        if params.get(key, None):
+        if options.get(key, None):
             print("momory not supported yet")
+
 
 
 def run_jobs(toml_file):
@@ -61,6 +61,18 @@ def run_jobs(toml_file):
 
     cfg = tomlkit.loads(Path(toml_file).read_text())
     print(cfg)
+    
+    pg = None
+    if cfg.get("placement_group", None):
+        group = cfg.get("placement_group")
+        # because of tomlkit type is Container as dict
+        groups = []
+        for g in group:
+            groups.append(g.value)
+
+        pg = placement_group(groups, strategy="SPREAD")
+        ray.get(pg.ready())
+
 
     jobs = []
     for job in cfg["job"]:
@@ -69,15 +81,20 @@ def run_jobs(toml_file):
         app = scripts[0]
         args = scripts[1:]
 
-        params = {
-            "num_cpus": job.get("num_cpus"),
-            "num_gpus": job.get("num_gpus"),
-            "resources": job.get("resources"),
-        }
+        options = {}
+        if job.get("options", None):
+            options = job.get("options")
+            options = {
+                "num_cpus": options.get("num_cpus", None),
+                "num_gpus": options.get("num_gpus", None),
+                "resources": options.get("resources", None),
+                "placement_group": pg if options.get("placement_group_bundle_index", None) else 'default',
+                "placement_group_bundle_index": options.get("placement_group_bundle_index", -1)
+            }
 
-        check_params(params)
+        check_options(options)
 
-        task = runpy_run.options(**params).remote(app, args)
+        task = runpy_run.options(**options).remote(app, args)
         jobs.append(task)
 
     ray.get(jobs)
@@ -151,15 +168,15 @@ def main():
     else:
         resources = ast.literal_eval(args.resources) if args.resources else None
 
-        params = {
+        options = {
             "num_cpus": args.num_cpus,
             "num_gpus": args.num_gpus,
             "resources": resources,
         }
-        print(f"RayParams: {params}")
+        print(f"remote options: {options}")
         print(f"cmd: {args.cmd}, args: {args.args}")
 
-        run_script(params, args.cmd, args.args)
+        run_script(options, args.cmd, args.args)
     
 
 
