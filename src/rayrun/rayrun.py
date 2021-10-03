@@ -10,13 +10,13 @@ import shlex
 import runpy
 
 
-
+"""
 @dataclasses.dataclass
-class RayConfig:
+class RayParams:
     num_cpus: float | None
     num_gpus: float | None
     resources: dict[str, float] | None
-
+"""
     
 @ray.remote
 def runpy_run(app: str, args: list[str]):
@@ -24,35 +24,61 @@ def runpy_run(app: str, args: list[str]):
     runpy.run_path(sys.argv[0], run_name="__main__")
 
 
+def run_script(params: dict, app: str, args: list[str]):
+    task = runpy_run.options(**params).remote(app, args)
+    ray.get(task)
+    print("Finish task")
+
+"""
 def ray_init(config):
     address = config["address"] if "address" in config else 'auto'
     runtime_env = config["runtime_env"] if "runtime_env" in config else None
     ray.init(address=address, runtime_env=runtime_env)
-    
+"""
 
-def toml_run(toml_file):
+def check_params(params):
+    keys = [
+        "num_returns", 
+        "memory", 
+        "object_store_memory", 
+        "accelerator_type",
+        "max_retries",
+        "placement_group",
+        "placement_group_bundle_index",
+        "placement_group_capture_child_tasks",
+        "runtime_env",
+        "override_environment_variables",
+        "name"
+    ]
+    for key in keys:
+        if params.get(key, None):
+            print("momory not supported yet")
+
+
+def run_jobs(toml_file):
     import tomlkit
     from pathlib import Path
 
     cfg = tomlkit.loads(Path(toml_file).read_text())
     print(cfg)
 
-    ray_init(cfg["ray"]["init"])
-    
     jobs = []
     for job in cfg["job"]:
         print(shlex.split(job["cmd"]))
         scripts = shlex.split(job["cmd"])
         app = scripts[0]
         args = scripts[1:]
-        ref = runpy_run.options(
-            num_cpus=job["cpus"] if "cpus" in job else None,
-            num_gpus=job["gpus"] if "gpus" in job else None,
-            resources=job["resources"] if "resources" in job else None,
-            runtime_env=job["runtime_env"] if "runtime_env" in job else None
-        ).remote(app, args)
 
-        jobs.append(ref)
+        params = {
+            "num_cpus": job.get("num_cpus"),
+            "num_gpus": job.get("num_gpus"),
+            "resources": job.get("resources"),
+        }
+
+        check_params(params)
+
+        task = runpy_run.options(**params).remote(app, args)
+        jobs.append(task)
 
     ray.get(jobs)
         
@@ -72,13 +98,13 @@ def get_args_parser() -> ArgumentParser:
     parser = ArgumentParser(description="Ray resource launcher")
 
     parser.add_argument(
-        "--num-cpus",
+        "--num_cpus",
         type=int,
         help="Ray option"
     )
 
     parser.add_argument(
-        "--num-gpus",
+        "--num_gpus",
         type=int,
         help="Ray option"
     )
@@ -112,37 +138,28 @@ def get_args_parser() -> ArgumentParser:
     return parser
 
 
-def run_script(config: RayConfig, app: str, args: list[str]):
-    ray_init({"address": 'auto'})
-    
-    task = runpy_run.options(
-        num_cpus=config.num_cpus,
-        num_gpus=config.num_gpus,
-        resources=config.resources
-    ).remote(app, args)
-
-    ray.get(task)
-    print("Finish task")
-
-
 def main():
     parser = get_args_parser()    
     args = parser.parse_args()
 
+    ray.init(**{
+        "address": 'auto'
+    })
+
     if ".toml" in args.cmd:
-        toml_run(args.cmd)
+        run_jobs(args.cmd)
     else:
         resources = ast.literal_eval(args.resources) if args.resources else None
 
-        config = RayConfig(
-            num_cpus=args.num_cpus,
-            num_gpus=args.num_gpus,
-            resources=resources,
-        )
-        print(f"RayConfig: {config}")
+        params = {
+            "num_cpus": args.num_cpus,
+            "num_gpus": args.num_gpus,
+            "resources": resources,
+        }
+        print(f"RayParams: {params}")
         print(f"cmd: {args.cmd}, args: {args.args}")
 
-        run_script(config, args.cmd, args.args)
+        run_script(params, args.cmd, args.args)
     
 
 

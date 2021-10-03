@@ -1,18 +1,15 @@
 [ray.init]
-# if you want to connect a exsisting ray cluster, set "auto"
-address="auto"
-#runtime_env={working_dir="."}
 
 
 [[job]]
-num-cpus = 1
-#num-gpus = 0
+num_cpus = 1
+#num_gpus = 0
 #resources = {res1=1}
 cmd="examples/sample.py -t \"test test\" 'aa ' -c"
 
 
 [[job]]
-num-cpus = 0.1
+num_cpus = 0.1
 cmd="examples/sample.py -t1 -d"
 [job.runtime_env]
 env_vars={DEBUG="1", TRACE="True"}
