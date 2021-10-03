@@ -16,12 +16,19 @@ class RayConfig:
     num_cpus: float | None
     num_gpus: float | None
     resources: dict[str, float] | None
+
     
 @ray.remote
 def runpy_run(app: str, args: list[str]):
     sys.argv = [app] + [*args]
     runpy.run_path(sys.argv[0], run_name="__main__")
 
+
+def ray_init(config):
+    address = config["address"] if "address" in config else 'auto'
+    runtime_env = config["runtime_env"] if "runtime_env" in config else None
+    ray.init(address=address, runtime_env=runtime_env)
+    
 
 def toml_run(toml_file):
     import tomlkit
@@ -30,9 +37,7 @@ def toml_run(toml_file):
     cfg = tomlkit.loads(Path(toml_file).read_text())
     print(cfg)
 
-    address = cfg["ray"]["init"]["address"] if "address" in cfg["ray"]["init"] else None
-    runtime_env = cfg["ray"]["init"]["runtime_env"] if "runtime_env" in cfg["ray"]["init"] else None
-    ray.init(address=address, runtime_env=runtime_env)
+    ray_init(cfg["ray"]["init"])
     
     jobs = []
     for job in cfg["job"]:
@@ -108,6 +113,8 @@ def get_args_parser() -> ArgumentParser:
 
 
 def run_script(config: RayConfig, app: str, args: list[str]):
+    ray_init({"address": 'auto'})
+    
     task = runpy_run.options(
         num_cpus=config.num_cpus,
         num_gpus=config.num_gpus,
